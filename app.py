@@ -20,21 +20,20 @@ from torch.utils.data.sampler import SequentialSampler
 
 
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
-IMAGE_SIZE = (1024,1024 )  ## Based on the file size
 UPLOAD_FOLDER = 'uploads'
 # Define model
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 model3 = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
 num_classes = 2  # foreground(wheat) + background
 # get number of input features for the classifier
-in_features = model.roi_heads.box_predictor.cls_score.in_features
-
+in_features = model3.roi_heads.box_predictor.cls_score.in_features
 # replace the pre-trained head with a new one
 model3.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
 model3.load_state_dict(torch.load("./torchModel.pt"))
+params = [p for p in model3.parameters() if p.requires_grad]
 optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
 model3.to(device)
-# tnet=Triplenet(model).cuda()
+
 fasterRCNN = model3  ## Upload the saved model
 
 
