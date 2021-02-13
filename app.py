@@ -5,11 +5,37 @@ from tensorflow.keras.models import Sequential, load_model
 from werkzeug.utils import secure_filename
 import numpy as np
 
+import torch
+import torchvision
+
+from PIL import Image
+from torchvision.transforms import ToTensor
+
+from torchvision.models.detection.faster_rcnn import FastRCNNPredictor
+from torchvision.models.detection import FasterRCNN
+from torchvision.models.detection.rpn import AnchorGenerator
+
+from torch.utils.data import DataLoader, Dataset
+from torch.utils.data.sampler import SequentialSampler
+
 
 ALLOWED_EXTENSIONS = set(['jpg', 'jpeg', 'png'])
-IMAGE_SIZE = (256,256 )  ## Based on the file size
+IMAGE_SIZE = (1024,1024 )  ## Based on the file size
 UPLOAD_FOLDER = 'uploads'
-fasterRCNN = load_model('fasterRCNN2.pth')  ## Upload the saved model
+# Define model
+device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+model3 = torchvision.models.detection.fasterrcnn_resnet50_fpn(pretrained=True)
+num_classes = 2  # foreground(wheat) + background
+# get number of input features for the classifier
+in_features = model.roi_heads.box_predictor.cls_score.in_features
+
+# replace the pre-trained head with a new one
+model3.roi_heads.box_predictor = FastRCNNPredictor(in_features, num_classes)
+model3.load_state_dict(torch.load("./torchModel.pt"))
+optimizer = torch.optim.SGD(params, lr=0.005, momentum=0.9, weight_decay=0.0005)
+model3.to(device)
+# tnet=Triplenet(model).cuda()
+fasterRCNN = model3  ## Upload the saved model
 
 
 def allowed_file(filename):
@@ -18,11 +44,12 @@ def allowed_file(filename):
 
 
 def predict(file):
-    img  = load_img(file, target_size=IMAGE_SIZE)
-    img = img_to_array(img)/255.0
-    img = np.expand_dims(img, axis=0)
-    pred = fasterRCNN.predict(img)[0]
-    output = pred[0][boxes].data.cpu().numpy()
+    device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
+    imagev = Image.open(file)
+    imagev = ToTensor()(imagev).unsqueeze(0) # unsqueeze to add artificial first dimension
+    imagev=imagev.to(device)
+    pred = fasterRCNN(imagev)
+    output = pred[0]['boxes'].data.cpu().numpy()
     return output
 
 app = Flask(__name__, template_folder='Templates')  ## To upload files to folder
